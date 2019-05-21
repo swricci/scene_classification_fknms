@@ -1,5 +1,5 @@
 
-%%2. Signal aquisition and pre-processing
+%% 2. Signal aquisition and pre-processing
 
 %2a. Signal Processing
 %split long recording into one-minute segments of audio
@@ -87,26 +87,77 @@ end
 
 z_env_db = 20*log10(z_env);
 
-%noise reduction wave envelope (uses z_env)
+%% 3a. noise reduction wave envelope (uses z_env)
 %1. find max and min of waveform (each ROW):
 wmin = min(z_env_db,[],2);
 wmax = max(z_env_db,[],2);
 
 %2. Compute 100 bin histogram of dB values
-whist = histogram(z_env_db(1,:),100);
-whistcount = whist.BinCounts;
+hcount = nan(size(z_env_db,1),100);
+edges = nan(size(z_env_db,1),101);
+for i = 1:size(z_env_db,1);
+    [hcount(i,:),edges(i,:)] = histcounts(z_env_db(i,:),100); %output bins here too
+end
 
-[N,edges,bin] = histcounts(z_env_db(1,:),100);
+figure;histogram('BinEdges', edges(9,:),'BinCounts',hcount(9,:))
+figure; plot(hcount');
 
 %3. Smooth the histogram using a moving average filter
-windowSize = 5; 
+windowSize = 5; %can set this!
 b = (1/windowSize)*ones(1,windowSize);
 a = 1;
-smooth_hist = filter(b,a,whistcount);
+smooth_hcount = nan(size(hcount,1),100);
+for i=1:size(hcount,1);
+    smooth_hcount(i,:) = filter(b,a,hcount(i,:));
+end
 
-%Mode of histogram
-[mhist,ind] = max(whistcount);
-binedges = whist.BinEdges(ind:ind + 1)
+figure; plot(smooth_hcount');
+
+%4 Mode of histogram
+h_mode = nan(1,size(smooth_hcount,1));
+h_ind = nan(1,size(smooth_hcount,1));
+mode_db = nan(1,size(smooth_hcount,1));
+for i = 1:size(smooth_hcount,1);
+    [h_mode(i),h_ind(i)] = max(hcount(i,:));
+    mode_db(i) = mean(edges(i,h_ind(i):h_ind(i) +1));
+end
+
+%5. std dev of noise distribution or if N = 0 skip to step 7, since the
+%background noise value will be = mode_db (step 4)
+
+%7. Subtract mode from each waveform value
+z_env_db_nr = z_env_db - mode_db';
+a = find(z_env_db_nr < 0);
+z_env_db_nr(a) = 0;
+
+%SAVE z_env_db z_env_db_nr mode_db
+
+%% Waveform based indices
+%BGN, SNR, EVN, ACT (from Phillips et al 2018)
+
+%BGN (summary index): mode of the energy distribution in the waveform
+%envelope
+BGN = mode_db;
+
+%SNR (summary index): difference between max db value in db envelope and
+%BGN db
+SNR = wmax - mode_db';
+
+%ACT (summary index): Fraction of values in noise-reduced db env that
+%exceed a threshold (Towsey = 3dB).
+threshold = 3; %can set this!
+for i = 1:size(z_env_db_nr,1);
+    a = find(z_env_db_nr(i,:) > threshold);
+    ACT(i) = length(a)/size(z_env_db_nr,2);
+end
+
+%EVN (summary index): Events per second, average over noise reduced
+%one-minute. starts when db envelope crosses threshold from below to above
+%(threshold = 3 dB).
+
+
+
+
 
 
 
