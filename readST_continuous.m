@@ -1,5 +1,5 @@
 
-function  [y,fstart_UTC, fs, metadata]=readST_continuous(WAVFILE,DIR,STcalib)  
+function  [y,fstart_UTC, fs, metadata]=readST_continuous(WAVFILE,DIR,STcalib,demean)  
 % 
 %  [y,fstart_UTC,fs, metadata]=readST_continuous(WAVFILE,DIR,STcalib) 
 %  WAVFILE should be in single quotes 
@@ -105,7 +105,14 @@ if gainset==1;  gain=STcalib.high_gain(a);
 else 
     gain=STcalib.low_gain(a); 
 end 
+
+if demean == 1; 
 y=(y-mean(y))*(10^(gain/20)); 
+elseif demean == 2;
+    y = (y - median(y))*(10^(gain/20)); 
+else
+    y = y * (10^(gain/20));
+end
 
 metadata.sn = SN; 
 metadata.gainsetting = g;
