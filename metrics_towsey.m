@@ -29,7 +29,7 @@
     %dB (dB = 20 * log10 (A))
     
 
-%%3. Noise removal
+%% 3. Noise removal
 %Three methods: subtraction of mean, median, or mode.
 %Median often used - no assumption of noise model
 %Towsey uses modal with adaptive level equalization algorithim
@@ -154,6 +154,58 @@ end
 %EVN (summary index): Events per second, average over noise reduced
 %one-minute. starts when db envelope crosses threshold from below to above
 %(threshold = 3 dB).
+
+%% 2c. Spectrograms
+%512 or 1024 points
+% 0% or 50% overlap
+%Hamming window function to each frame prior to FFT
+%Spectra smoothed with moving average window width = 3
+%Spectral amplitude values:
+    %Fourier coefficient (A)
+    %Spectral energy/power (A^2)
+    %dB (dB = 20 * log10 (A))
+    
+% need to create spectrogram from one - minute segments that is NOT
+% demeaned/ noise reduced
+
+% x is matrix for each one minute duration segment
+% adapt sound_MSPEC where window = hamming, "y" is not demeaned
+win = 1024;
+spec = nan(win/(2+1,size(x,2));
+
+for j = 4;%:1;%size(x,2));
+    %the three lines below essentially create "z" from above...each level
+    %of 3rd dimension is for each one -minute segment.
+    xspec = buffer(x(:,j), win, ovlp,'nodelay');
+    if xspec(end)==0; xspec(:,end) = []; end
+    
+    %load z here? then loop through third dimension?
+    [r, Nwin] = size(xspec);
+    
+    %calculate spectra
+    wo = hamming(r); %hamming window
+    zo = xspec.*repmat(wo,1,Nwin); %apply window
+    nfft = 2^nextpow2(win);
+    Y = fft(zo,nfft,1);
+    po=2*abs(Y).^2/(nfft*sum(wo.^2)); % scale for PSD accounting for windowing 
+    po=po(1:ceil(nfft/2)+1,:); po(1)=0; % take first 1/2 & zero DC 
+    [prows,~] = size(po); % # rows in po. 
+    m=0:1:prows-1; f=m*fs/nfft; 
+    %smooth with moving average here? win width = 3
+    
+    %po matrix (no mean removed) is really load in first two frequency bins
+    %less than 100 Hz)
+    
+    t = fstart + (0:1:size(x,2)-1) * (chunk_size/(24*60*60));
+    
+    %save for this one-minute segment
+    
+    
+    [spec(:,j),f] = sound_MSPEC
+    
+
+
+%% 3b. Noise removal from SPECTROGRAM
 
 
 
