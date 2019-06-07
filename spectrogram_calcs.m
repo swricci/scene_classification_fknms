@@ -50,7 +50,7 @@ end
 
 %Create amp and db spectrograms for a single file (3d matrices = 3d is each
 %minute of the recording
-for j = 1:15;%size(z,3);    
+for j = 1:2;%size(z,3);    
     
     [r, Nwin] = size(z(:,:,j));
     
@@ -82,17 +82,16 @@ for j = 1:15;%size(z,3);
 end
 
 %Noise removal from spectrogram
-    % Step A
-    %now we need to create a histogram of intensity values in each
-    %frequency bin for the minute
-    hcount = nan(size(po_db,1),100);
-    edges = nan(size(po_db,1),101);
-    for i = 1:size(po_db,1);
-        [hcount(i,:),edges(i,:)] = histcounts(po_db(i,:),100); %output bins here too
-    end
+
+for c = 1:size(po_db,3);
+% Step A create a histogram of intensity values in each freq bin for the minute
     
-figure;histogram('BinEdges', edges(9,:),'BinCounts',hcount(9,:))
-figure; plot(hcount');
+    tmp = po_db(:,:,c);
+    hcount = nan(size(tmp,1),100);
+    edges = nan(size(tmp,1),101);
+    for i = 1:size(tmp,1);
+        [hcount(i,:),edges(i,:)] = histcounts(tmp(i,:),100); %output bins here too
+    end
     
 %smooth with moving average here? win width = 3
     mavg_win_spec = 5; %can set this
