@@ -50,7 +50,7 @@ end
 
 %Create amp and db spectrograms for a single file (3d matrices = 3d is each
 %minute of the recording
-for j = 1:2;%size(z,3);    
+for j = 1:size(z,3);    
     
     [r, Nwin] = size(z(:,:,j));
     
@@ -108,63 +108,88 @@ for c = 1:size(po_db,3);
         if h_ind(i) >= 96;
             mode_db_freqbin(i) = mean(edges(i,95:96));
         else
-        mode_db_freqbin(i) = mean(edges(i,h_ind(i):h_ind(i) +1));
+        mode_db_freqbin(c,i) = mean(edges(i,h_ind(i):h_ind(i) +1));
         end
     end
+
     
-    figure; plot(f,mode_db_freqbin);
+    
+    %figure; plot(f,mode_db_freqbin);
     
     %Step B use noise profile from A
     %smooth noise profile
-    smooth_mode_db_freq = smoothdata(mode_db_freqbin,'movmean',mavg_win_spec);
-    figure; plot(f,smooth_mode_db_freq);
+    smooth_mode_db_freq(c,:) = smoothdata(mode_db_freqbin(c,:),'movmean',mavg_win_spec);
+    %figure; plot(f,smooth_mode_db_freq);
     
     %subtract from po_db matrix to remove noise
-    po_db_nr = po_db - smooth_mode_db_freq';
+    po_db_nr(:,:,c) = tmp - smooth_mode_db_freq(c,:)';
     
     %negative values to 0
     a = find(po_db_nr < 0);
     po_db_nr(a) = 0;
+end
 
 %     figure; imagesc(tframes,f,po_db_nr); axis xy;
 %     figure; imagesc(tframes,f,po_db); axis xy;
+testcombo = reshape(po_db_nr,size(po_db_nr,1),[]);
+tframes = (0:1:size(testcombo,2)-1) * (frame_size/fs);
+figure; imagesc(tframes,f,testcombo); axis xy;
 
-%spectral indices: result should be a summary vector for each 1 min (so a
-%matrix for each recording
-
+%spectral indices
 %BGNsp = noise profile calculated in step B (smooth_mode_db_freq)
 
-BGNsp = smooth_mode_db_freq;
+BGNsp = smooth_mode_db_freq'; %n freq bins * nframes
 
-%PMNsp = power minus noise (max in each freq bin - BGN val)
-db_freq_max = max(po_db,[],2);
+for d =1:1:size(po_db,3);
+    tmp = po_db(:,:,d);
+    tmp_nr = po_db_nr(:,:,d);
+    db_freq_max = max(tmp,[],2);
+    
+    %PMNsp = power minus noise (max in each freq bin - BGN val)
+    PMNsp(:,d)=db_freq_max - BGNsp(:,d);
 
-PMNsp = db_freq_max - BGNsp;
 
-%ACTsp = Activity (fraction of cells in each noise-reduced freq bin that
-%exceeds a threshold (3dB).
+%figure; imagesc([],f,PMNsp); axis xy;
 
-threshold = 3; %can set this!
-for i = 1:size(po_db_nr,1);
-    a = find(po_db_nr(i,:) > threshold);
-    ACTsp(i) = length(a)/size(po_db_nr,2);
-end
-
-%EVNsp (summary index): Events per minute in each noise-reduced frequency
-%bin. Event = each time dB value exceeeds 3db threshold from low to high
-
-po_gr_thresh = po_db_nr;
+    
+    %ACTsp = Activity (fraction of cells in each noise-reduced freq bin that
+    %exceeds a threshold (3dB).
+    threshold = 3; %can set this!
+    for i = 1:size(tmp_nr,1);
+        a = find(tmp_nr(i,:) > threshold);
+        ACTsp(i,d) = length(a)/size(tmp_nr,2);
+    end
+    
+    %EVNsp (summary index): Events per minute in each noise-reduced frequency
+    %bin. Event = each time dB value exceeeds 3db threshold from low to high
+    
+po_gr_thresh = tmp_nr;
 po_gr_thresh(po_gr_thresh<threshold) = 0;
 po_gr_thresh(po_gr_thresh>=threshold) = threshold;
 
-EVNsp = [];
 
-for i = 1:size(z_env_db_nr,1);
-    pks = [];
-    pks = findpeaks(po_gr_thresh(i,:));
-    EVNsp(i) = length(pks)/chunk_size;
+    for k = 1:1:size(tmp_nr,1);
+        pks = [];
+        pks = findpeaks(po_gr_thresh(k,:));
+        EVNsp(d,k) = length(pks)/chunk_size;
+    end
+  
 end
 
+%ENTsp - uses amplitude spectrogram (po_amp)
+for c=1:1:size(po_amp,3);
+    for fbin= 1:1:size(po_amp,1);
+        sumXi=sum(po_amp(fbin,:,c));
+        At = po_amp(fbin,:,c)/sumXi;
+        Ht_f(c,fbin)=-(sum(At.*log2(At)))/log2(length(At));
+    end
+end
+
+
+figure; imagesc([],f,PMNsp); axis xy;
+figure; imagesc([],f,ACTsp); axis xy;
+figure; imagesc([],f,EVN_tmp'); axis xy; colormap gray;
+figure; imagesc([],f,Ht_f'); axis xy; colormap gray;
 
     
  
