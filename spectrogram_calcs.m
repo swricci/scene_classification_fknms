@@ -131,9 +131,9 @@ end
 
 %     figure; imagesc(tframes,f,po_db_nr); axis xy;
 %     figure; imagesc(tframes,f,po_db); axis xy;
-testcombo = reshape(po_db_nr,size(po_db_nr,1),[]);
-tframes = (0:1:size(testcombo,2)-1) * (frame_size/fs);
-figure; imagesc(tframes,f,testcombo); axis xy;
+% testcombo = reshape(po_db_nr,size(po_db_nr,1),[]);
+% tframes = (0:1:size(testcombo,2)-1) * (frame_size/fs);
+% figure; imagesc(tframes,f,testcombo); axis xy;
 
 %spectral indices
 %BGNsp = noise profile calculated in step B (smooth_mode_db_freq)
@@ -186,10 +186,35 @@ for c=1:1:size(po_amp,3);
 end
 
 
-figure; imagesc([],f,PMNsp); axis xy;
-figure; imagesc([],f,ACTsp); axis xy;
-figure; imagesc([],f,EVN_tmp'); axis xy; colormap gray;
-figure; imagesc([],f,Ht_f'); axis xy; colormap gray;
+%summary indices for frequency bins
+% LFC = 100 - 1500 Hz
+% HFC = 4000 - 10000 Hz *can adjust - here skipping "notch" in data
 
+% use nr db spectrogram
+for d =1:1:size(po_db,3);
+    tmp_nr = po_db_nr(:,:,d);
+    
+    lf = find(f >=100 & f<= 1500);
+    hf = find(f >=4000 & f<= 10000);
+    
+    tmp_nr_lf =tmp_nr(lf,:);
+    tmp_nf_hf = tmp_nr(hf,:);
+    
+    ncell_lf = length(find(tmp_nr_lf > threshold));
+    ncell_hf = length(find(tmp_nr_hf > threshold));
+    
+    LFC(d) = ncell_lf/numel(tmp_nr_lf);
+    HFC(d) = ncell_hf/numel(tmp_nr_hf);
+    
+    
+end
+
+
+
+% figure; imagesc([],f,PMNsp); axis xy;
+% figure; imagesc([],f,ACTsp); axis xy;
+% figure; imagesc([],f,EVN_tmp'); axis xy; colormap gray;
+% figure; imagesc([],f,Ht_f'); axis xy; colormap gray;
+% 
     
  
