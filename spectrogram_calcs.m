@@ -209,6 +209,70 @@ for d =1:1:size(po_db,3);
     
 end
 
+%EPS
+eps_test=po_amp(:,:,1);
+eps_test = eps_test(lf,:);
+
+for i=1:1:size(po_amp,3);
+    tmp = po_amp(lf,:,i);
+    [maxval,maxind] = max(tmp,[],1);
+    [maxcount,maxbins]=histcounts(maxval,size(tmp,1));
+    
+    sumXi=sum(maxcount); % Sum the envelope 
+    At=maxcount/sumXi;  % Compute the probability mass function 
+    Hp=-(nansum(At .* log2(At)))/log2(length(At));
+    EPS(i) = 1 - Hp;
+end
+
+%eas
+for i=1:1:size(po_amp,3);
+    tmp = po_amp(lf,:,i);
+    poavg = nanmean(tmp,2);
+    
+    %Xi=abs(hilbert(poavg));
+    Xi=poavg;
+    sumXi=sum(Xi); % Sum the envelope 
+    At=Xi/sumXi;  % Compute the probability mass function 
+    Ha=-(nansum(At .* log2(At)))/log2(length(At));
+    EAS(i) = 1 - Ha;
+end
+
+
+%ecv
+for i=1:1:size(po_amp,3);
+    tmp = po_amp(lf,:,i);
+    poavg = nanmean(tmp,2);
+    povar = var(tmp,[],2);
+    
+    pocv = povar./poavg;
+    
+    %Xi=abs(hilbert(poavg));
+    Xi=pocv;
+    sumXi=sum(Xi); % Sum the envelope 
+    At=Xi/sumXi;  % Compute the probability mass function 
+    Hc=-(nansum(At .* log2(At)))/log2(length(At));
+    ECV(i) = 1 - Hc;
+end
+
+%ACI
+for i=1:1:size(po_amp,3);
+    tmp = po_amp(lf,:,i);
+    
+    I = abs(tmp);
+    % difference in intensity in each freq bin from one time step to next
+    diffI=abs(diff(I,1,2));  
+    % sum of intensities in each freq bin
+    sumI=sum(I,2);  
+    % sum of differences between freq bins  
+    sumdiffI=sum(diffI,2);  
+    % ACI in each frequency bin 
+    ACIfreq(:,i)=sumdiffI./sumI;  
+
+    % sum those frequency bins to calcualte the ACI for that time window 
+    ACI(i)=sum(ACIfreq(:,i)); 
+end
+
+
 
 
 % figure; imagesc([],f,PMNsp); axis xy;
