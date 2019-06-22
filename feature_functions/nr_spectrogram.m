@@ -1,16 +1,16 @@
-function [po_db_nr,mode_db_freq] = nr_spectrogram(po_db,mavg_win)
+function [po_nr,mode_db_freq] = nr_spectrogram(po_mat,mavg_win)
 %nr_spectrogram Removes background noise from spectrogram.
 % For each minute segment, a background noise profile is constructed for
 % each frequency bin. This is subtracted from the decibel spectrogram,
 % resulting in a noise-removed spectrogram
 
 %pre-allocate space
-mode_db_freq = nan(size(po_db,3),size(po_db,1));
+mode_db_freq = nan(size(po_mat,3),size(po_mat,1));
 
 %% Create histogram of intensity values in each freq bin
 
-for c = 1:size(po_db,3);
-    tmp = po_db(:,:,c);
+for c = 1:size(po_mat,3);
+    tmp = po_mat(:,:,c);
     hcount = nan(size(tmp,1),100);
     edges = nan(size(tmp,1),101);
     
@@ -42,9 +42,9 @@ for c = 1:size(po_db,3);
     %figure; plot(f,smooth_mode_db_freq);
     
     %subtract from po_db matrix to remove noise
-    po_db_nr(:,:,c) = tmp - mode_db_freq(c,:)';
+    po_nr(:,:,c) = tmp - mode_db_freq(c,:)';
     
     %negative values to 0
-    a = find(po_db_nr < 0);
-    po_db_nr(a) = 0;
+    a = find(po_nr < 0);
+    po_nr(a) = 0;
 end

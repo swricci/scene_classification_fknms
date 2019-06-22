@@ -1,5 +1,6 @@
-function [po_amp,po_db] = feature_spectrogram(y,fs,chunk_size,frame_size, overlap)
-% feature_spectrogram Returns amplitude and decibel spectrograms for an
+function [po_amp,f] = feature_spectrogram(y,fs,chunk_size,frame_size,overlap)
+% feature_spectrogram(y,fs,chunk_size,frame_size, overlap)
+%feature_spectrogram Returns amplitude and decibel spectrograms for an
 % audio file.
 %   Amplitude and db spectrograms are calculated for each data segment (ex
 %   60 sec) of the original file. The result is a 3D matrix with the 3rd
@@ -22,9 +23,9 @@ x=buffer(y,bwin,overlap,'nodelay'); %x=buffer(y,bwin,overlap,'nodelay');
 if x(end)==0; x(:,end)=[]; end  % if last colum is zero padded delete. 
 
 %steps to demean this matrix?
-[r,Nwin]=size((x)); 
-msub=repmat(mean(x,1),r,1); % calculate the mean of each column 
-x=x-msub; % remove the mean of each column
+% [r,Nwin]=size((x)); 
+% msub=repmat(mean(x,1),r,1); % calculate the mean of each column 
+% x=x-msub; % remove the mean of each column
 
 %% Divide chunks into frames of frame_size points. 
 %This creates a 3D matrix (z) where:
@@ -58,7 +59,7 @@ for j = 1:size(z,3);
     
     po_amp(:,:,j) = po;
     
-    po_db(:,:,j) = 10*log10(po); %decibel spectrogram
+    %po_db(:,:,j) = 10*log10(po); %decibel spectrogram
     
 end
 end

@@ -68,7 +68,7 @@ g=logf(Gind1);
 
 if isempty(g) 
     g='H'; 
-     disp('warning: could read gain from logfile - defaulting to H; this is normal for coninuous or 100% duty cycle recordings')
+     %disp('warning: could read gain from logfile - defaulting to H; this is normal for coninuous or 100% duty cycle recordings')
 else
 g=g(1); 
 end
@@ -79,7 +79,7 @@ gainset=1;
 elseif strcmp(g,'L')
     gainset=0; 
 else
-    disp('could read gain from logfile, defaulting to H - cause unknown') 
+    %disp('could read gain from logfile, defaulting to H - cause unknown') 
     gainset=1;
 end
 

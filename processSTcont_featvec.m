@@ -11,6 +11,12 @@ SNR_long = [];
 ACT_long = [];
 EVN_long = [];
 ENT_long = [];
+LFC_long = [];
+HFC_long = [];
+EPS_long = [];
+EAS_long = [];
+ECV_long = [];
+ACI_long = [];
 tframe_long = [];
 
 DirIn =char(dir2process.DirIn(1));
@@ -20,8 +26,11 @@ Deployment=dir2process.Deployment(1);
    
 [filelist,ftimes,fend]= mktableSTdir(DirIn);
 
+h = waitbar(0,'Calculating feature vectors...');
+
 tic
-for file = 2:length(filelist);
+for file = 2:3;%length(filelist);
+    fprintf('Processing %s\n', char(filelist(file).name));
     [y,fstart,fs,metadata]=readST_continuous(char(filelist(file).name),DirIn,STcalib);
     
     %filter data
@@ -30,9 +39,11 @@ for file = 2:length(filelist);
     %[H,F] = freqz(B,A,2048,fs);
     %figure; plot(F,abs(H));
     yfilt = filtfilt(B,A,y);
+    
+    z = chunk_data(yfilt,fs,chunk_size,frame_size,ovlp);
   
     %calculate wave envelope
-    wave_env = wave_env_func(yfilt,fs,chunk_size,frame_size, ovlp);
+    wave_env = wave_env_func(z);
     wave_env_db = 20 * log10(wave_env);
     
     %noise removal from wave envelope (use wave_env_db)
@@ -53,6 +64,53 @@ for file = 2:length(filelist);
     
     ENT(file,:) = Ht;
     
+    
+    %spectrogram based calculatons
+    
+    %create amp spectrogram
+    [po_amp,f] = feature_spectrogram(z,fs,frame_size);
+    
+    %noise removal from spectrogram
+    %dB
+   po_db = 10*log10(po_amp);
+   [po_db_nr,mode_db_freq]=nr_spectrogram(po_db,mavg_win);
+    
+    %amp
+    po_amp2 = po_amp.^2;
+    [po_amp2_nr] = nr_spectrogram(po_amp2,mavg_win);
+    
+    %spectrogram based indices
+    
+    lf_lim = [150 1500];
+    hf_lim = [4000 10000];
+    
+    %noise removed db spectrogram indices:
+    [LFC(file,:),HFC(file,:)]= freq_cover_ind(po_db_nr,lf_lim,hf_lim,threshold,f);
+    
+    %noise removed amp2 spectrogram indices:
+    [EPS(file,:),EAS(file,:),ECV(file,:)]=entropy_metrics(po_amp2_nr,lf_lim,f);
+    
+    %ACI
+    for j=1:1:size(po_amp,3);
+        lf = f >=lf_lim(1) & f<= lf_lim(2);
+        tmp = po_amp(lf,:,j);
+
+        I = abs(tmp);
+        % difference in intensity in each freq bin from one time step to next
+        diffI=abs(diff(I,1,2));  
+        % sum of intensities in each freq bin
+        sumI=sum(I,2);  
+        % sum of differences between freq bins  
+        sumdiffI=sum(diffI,2);  
+        % ACI in each frequency bin 
+        ACIfreq(:,j)=sumdiffI./sumI;  
+
+        % sum those frequency bins to calcualte the ACI for that time window 
+        ACItmp(j)=sum(ACIfreq(:,j)); 
+    end
+    
+    ACI(file,:) = ACItmp;
+    
     %determine start time of each frame
     tframe(file,:) = fstart + (0:1:size(wave_env,1)-1) * (chunk_size/(24*60*60));
     
@@ -62,18 +120,26 @@ for file = 2:length(filelist);
     ACT_long = cat(2,ACT_long,ACT(file,:));
     EVN_long = cat(2,EVN_long,EVN(file,:));
     ENT_long = cat(2,ENT_long,ENT(file,:));
+    LFC_long = cat(2,LFC_long,LFC(file,:));
+    HFC_long = cat(2,HFC_long,HFC(file,:));
+    EPS_long = cat(2,EPS_long,EPS(file,:));
+    EAS_long = cat(2,EAS_long,EAS(file,:));
+    ECV_long = cat(2,ECV_long,ECV(file,:));
+    ACI_long = cat(2,ACI_long,ACI(file,:));
     tframe_long = cat(2,tframe_long, tframe(file,:));
+    
+    waitbar(file/length(file),h);
     
 end
     
   toc  
   
-eval([Site '_' sprintf('%02.0f',Deployment) '_BGN=BGN;']);
-eval([Site '_' sprintf('%02.0f',Deployment) '_SNR=SNR;']);
-eval([Site '_' sprintf('%02.0f',Deployment) '_ACT=ACT;']);
-eval([Site '_' sprintf('%02.0f',Deployment) '_EVN=EVN;']);
-eval([Site '_' sprintf('%02.0f',Deployment) '_ENT=ENT;']);
-eval([Site '_' sprintf('%02.0f',Deployment) '_tframe=tframe;']);
+% eval([Site '_' sprintf('%02.0f',Deployment) '_BGN=BGN;']);
+% eval([Site '_' sprintf('%02.0f',Deployment) '_SNR=SNR;']);
+% eval([Site '_' sprintf('%02.0f',Deployment) '_ACT=ACT;']);
+% eval([Site '_' sprintf('%02.0f',Deployment) '_EVN=EVN;']);
+% eval([Site '_' sprintf('%02.0f',Deployment) '_ENT=ENT;']);
+% eval([Site '_' sprintf('%02.0f',Deployment) '_tframe=tframe;']);
 
   
 eval([Site '_' sprintf('%02.0f',Deployment) '_BGN_long=BGN_long;']);
@@ -81,15 +147,21 @@ eval([Site '_' sprintf('%02.0f',Deployment) '_SNR_long=SNR_long;']);
 eval([Site '_' sprintf('%02.0f',Deployment) '_ACT_long=ACT_long;']);
 eval([Site '_' sprintf('%02.0f',Deployment) '_ENT_long=ENT_long;']);
 eval([Site '_' sprintf('%02.0f',Deployment) '_EVN_long=EVN_long;']);
+eval([Site '_' sprintf('%02.0f',Deployment) '_LFC_long=LFC_long;']);
+eval([Site '_' sprintf('%02.0f',Deployment) '_HFC_long=HFC_long;']);
+eval([Site '_' sprintf('%02.0f',Deployment) '_EPS_long=EPS_long;']);
+eval([Site '_' sprintf('%02.0f',Deployment) '_EAS_long=EAS_long;']);
+eval([Site '_' sprintf('%02.0f',Deployment) '_ECV_long=ECV_long;']);
+eval([Site '_' sprintf('%02.0f',Deployment) '_ACI_long=ACI_long;']);
 eval([Site '_' sprintf('%02.0f',Deployment) '_tframe_long=tframe_long;']);
 
-eval(['save ',DirOut, [Site '_' sprintf('%02.0f',Deployment) '_featvec_results.mat'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_BGN']...
-    ' ' [Site '_' sprintf('%02.0f',Deployment) '_SNR'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_ACT']...
-    ' ' [Site '_' sprintf('%02.0f',Deployment) '_EVN'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_ENT']...
-    ' ' [Site '_' sprintf('%02.0f',Deployment) '_tframe'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_BGN_long']...
+eval(['save ',DirOut, [Site '_' sprintf('%02.0f',Deployment) '_featvec_results.mat'] 
+    ' ' [Site '_' sprintf('%02.0f',Deployment) '_BGN_long'] ' '[Site '_' sprintf('%02.0f',Deployment) '_ACI_long']...
     ' ' [Site '_' sprintf('%02.0f',Deployment) '_SNR_long'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_ACT_long']...
     ' ' [Site '_' sprintf('%02.0f',Deployment) '_ENT_long'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_EVN_long']...
-    ' ' [Site '_' sprintf('%02.0f',Deployment) '_tframe_long']]); 
+    ' ' [Site '_' sprintf('%02.0f',Deployment) '_LFC_long'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_HFC_long']...
+    ' ' [Site '_' sprintf('%02.0f',Deployment) '_EPS_long'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_EAS_long']...
+    ' ' [Site '_' sprintf('%02.0f',Deployment) '_ECV_long'] ' ' [Site '_' sprintf('%02.0f',Deployment) '_tframe_long']]); 
  
     
     
